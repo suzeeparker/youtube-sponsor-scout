@@ -1,0 +1,6 @@
+{ "folders": [
+  { "path": ".",       "name": "Application Files" },
+  { "path": "../._1",  "name": "Support Files"   },
+  { "path": "../data", "name": "Data Files"      }
+     ]
+  }

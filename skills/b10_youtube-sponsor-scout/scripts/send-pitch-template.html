@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Send Pitch - template</title>
+<!--
+  YouTube Sponsor Scout: Send-pitch template.
+  An editable Outreach Pitch, a "Send To:" email field, and a Send button.
+  - The Send button is disabled (grey text) while the email is blank or invalid.
+  - It turns active as soon as the email is valid.
+  - Send opens a draft in the user's own email app (mailto:), with the pitch's
+    "Subject:" line as the subject. Nothing is sent until the user presses Send there.
+  Fill the three data-* values on #pitch-form (or call loadPitch()) to reuse it.
+-->
+<style>
+  :root { --ink:#1f2328; --muted:#8c959f; --line:#d0d7de; --accent:#0969da; --bg:#fff; --disabled-bg:#eaeef2; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); max-width: 720px; margin: 32px auto; padding: 0 16px; }
+  label { display: block; font-weight: 600; margin: 16px 0 6px; }
+  textarea, input[type=email] { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font: inherit; }
+  textarea { min-height: 200px; resize: vertical; line-height: 1.5; }
+  input[type=email][aria-invalid=true] { border-color: #cf222e; }
+  .hint { font-size: 13px; color: var(--muted); min-height: 1.2em; margin-top: 4px; }
+  .note { font-size: 14px; background: #ddf4ff; border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 12px; }
+  button { padding: 8px 22px; border: 0; border-radius: 8px; font: inherit; font-weight: 600; background: var(--accent); color: #fff; cursor: pointer; }
+  button:disabled { background: var(--disabled-bg); color: var(--muted); cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div id="pitch-form"
+     data-sponsor="Example Co"
+     data-email="jane@example.com"
+     data-pitch="Subject: A sponsorship idea for Example Co&#10;&#10;Hi Jane, I saw Example Co's #sponsored spot in a recent beginner course video, which places Example Co next to the tools creators are learning to build with. My channel reaches viewers who create content with AI, the people most likely to try Example Co. Would you be open to a 5-minute chat, or should I send over the media kit?">
+
+  <h2 id="sponsor-heading">Outreach Pitch</h2>
+
+  <label for="pitch">Outreach Pitch</label>
+  <textarea id="pitch"></textarea>
+
+  <div class="note">Outreach pitch edits stay on this page while it's open and aren't saved to the sheet.</div>
+
+  <label for="send-to">Send To:</label>
+  <input id="send-to" type="email" placeholder="name@company.com" autocomplete="off">
+  <div class="hint" id="email-hint"></div>
+
+  <div class="row">
+    <button id="send-btn" type="button" disabled>Send</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Same rule as the Page: something@something.tld, no spaces, TLD of 2+ chars.
+  var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  function isValidEmail(v) { return EMAIL_RE.test(String(v || "").trim()); }
+
+  var form  = document.getElementById("pitch-form");
+  var pitch = document.getElementById("pitch");
+  var to    = document.getElementById("send-to");
+  var hint  = document.getElementById("email-hint");
+  var btn   = document.getElementById("send-btn");
+  var head  = document.getElementById("sponsor-heading");
+
+  // Split "Subject: ..." off the first line; the rest is the body.
+  function splitPitch(text) {
+    var lines = String(text || "").split("\n");
+    if (/^Subject:/i.test(lines[0])) {
+      return { subject: lines[0].replace(/^Subject:\s*/i, "").trim(), body: lines.slice(1).join("\n").trim() };
+    }
+    return { subject: "", body: lines.join("\n").trim() };
+  }
+
+  function buildMailto(email, text) {
+    var p = splitPitch(text);
+    return "mailto:" + encodeURIComponent(email.trim()) +
+           "?subject=" + encodeURIComponent(p.subject) +
+           "&body=" + encodeURIComponent(p.body);
+  }
+
+  // Enable Send only for a valid email; grey + disabled otherwise.
+  function updateState() {
+    var v = to.value.trim();
+    var ok = isValidEmail(v);
+    btn.disabled = !ok;
+    to.setAttribute("aria-invalid", v !== "" && !ok ? "true" : "false");
+    hint.textContent = v === "" ? "No contact found. Enter an email to enable Send."
+                     : ok ? "" : "That doesn't look like a valid email address.";
+  }
+
+  btn.addEventListener("click", function () {
+    if (btn.disabled) return;
+    window.location.href = buildMailto(to.value, pitch.value);
+  });
+  to.addEventListener("input", updateState);
+  to.addEventListener("keydown", function (e) { if (e.key === "Enter" && !btn.disabled) btn.click(); });
+
+  // Public: load another sponsor into the form.
+  window.loadPitch = function (sponsor, email, text) {
+    head.textContent = "Outreach Pitch: " + (sponsor || "");
+    to.value = email || "";
+    pitch.value = text || "";
+    updateState();
+  };
+
+  window.loadPitch(form.dataset.sponsor, form.dataset.email, form.dataset.pitch);
+
+  // Exposed for testing in the browser console.
+  window.SendPitch = { isValidEmail: isValidEmail, splitPitch: splitPitch, buildMailto: buildMailto };
+})();
+</script>
+</body>
+</html>

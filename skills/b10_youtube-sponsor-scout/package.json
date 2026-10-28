@@ -1,0 +1,24 @@
+{
+  "name": "youtube-sponsor-scout-mcp",
+  "version": "1.1.0",
+  "description": "Model Context Protocol (MCP) server and standalone CLI for automated YouTube sponsor detection via YouTube Data API v3, Hunter.io contact enrichment, Google Sheets persistence, and 3-sentence pitch generation",
+  "main": "scripts/server.mjs",
+  "type": "module",
+  "bin": {
+    "youtube-sponsor-scout": "./scripts/server.mjs"
+  },
+  "scripts": {
+    "start": "node scripts/server.mjs",
+    "dev": "node --watch scripts/server.mjs",
+    "test": "node --test scripts/server.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.1",
+    "googleapis": "^144.0.0",
+    "zod": "^3.23.8",
+    "dotenv": "^16.4.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
