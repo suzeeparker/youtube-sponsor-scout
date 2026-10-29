@@ -51,7 +51,7 @@ The free plan includes 50 credits a month; a Domain Search uses 1 credit per ema
 
 ## 6. Sponsors sheet
 
-`b15_sponsor-sheet` creates a sheet named "YouTube Sponsor Scout" in your Drive with a **Sponsors** tab and these columns: Video URL, Video Timestamp, Brand Domain, Sponsor Name, Decision Maker Name, Job Title, Contact Email, Extracted Quote, Outreach Pitch, Logged At, Status. It shares the sheet with the service account from step 4. This needs steps 3 and 4 done first.
+`b15_sponsor-sheet` creates a sheet named "YouTube Sponsor Scout" in your Drive with a **Sponsors** tab and these 16 columns (A:P): Searched For, No., Video URL, Views, Video Timestamp, Brand Domain, Sponsor Name, Decision Maker Name, Job Title, Contact Email, Extracted Quote, Outreach Pitch, Channel, Logged At, Status, Video Title. It shares the sheet with the service account from step 4. This needs steps 3 and 4 done first. If your sheet was created with the older 11-column layout, insert the five new columns (Searched For, No., Views, Channel, Video Title) in those positions before the next run; existing rows stay as they are.
 
 ## Node.js
 

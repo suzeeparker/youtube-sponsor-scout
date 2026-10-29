@@ -5,7 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   searchYouTubeVideosByTopic, detectYouTubeSponsors, enrichSponsorContact, appendSponsorToSheet,
-  scoutYouTubeSponsorPipeline, scoutTopicSponsorsPipeline, getGoogleSheetsAccessToken
+  scoutYouTubeSponsorPipeline, scoutTopicSponsorsPipeline, getGoogleSheetsAccessToken,
+  SHEET_HEADERS, SHEET_LAST_COL, buildSheetRow
 } from "./server.mjs";
 
 const SECRET_KEYS = ["YOUTUBE_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GOOGLE_AI_STUDIO_KEY", "HUNTER_API_KEY", "GOOGLE_PRIVATE_KEY"];
@@ -16,6 +17,7 @@ const USAGE = `usage: cli.mjs <command> [args]
   enrich <domain>
   sheet-check
   append --json <rows.json>
+  row-preview --json <rows.json>   (dry run: prints the 16-cell Sheet rows, never writes)
   export --json <rows.json> --out <dir>
   pipeline-topic <topic> --count N [--order O] [--no-sheet] [--no-enrich]
   pipeline-url <url> [--no-sheet] [--no-enrich]`;
@@ -63,8 +65,18 @@ function readRows(file) {
   rows.forEach((r, i) => { if (!r || !r.sponsorName) fail(`row ${i}: sponsorName is required`, 2); });
   return rows;
 }
-const COLS = ["videoTitle", "channelTitle", "viewCount", "videoUrl", "sponsorName", "brandDomain", "timestamp",
+const COLS = ["searchedFor", "resultNo", "videoTitle", "channelTitle", "viewCount", "videoUrl", "sponsorName", "brandDomain", "timestamp",
   "extractedQuote", "contactName", "contactEmail", "contactTitle", "pitch", "status"];
+// rows.json object -> appendSponsorToSheet fields (Sheet columns A:P, see SHEET_HEADERS in server.mjs)
+function sheetFields(r) {
+  return {
+    searchedFor: r.searchedFor || "", resultNo: r.resultNo ?? "", videoUrl: r.videoUrl || "", viewCount: r.viewCount ?? "",
+    timestamp: r.timestamp || "", brandDomain: r.brandDomain || "", sponsorName: r.sponsorName,
+    contactName: r.contactName || "", contactTitle: r.contactTitle || "", contactEmail: r.contactEmail || "",
+    extractedQuote: r.extractedQuote || "", pitch: r.pitch || "", channelTitle: r.channelTitle || "",
+    videoTitle: r.videoTitle || "", ...(r.status ? { status: r.status } : {})
+  };
+}
 const csvCell = (v) => { const s = v == null ? "" : String(v); return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 const mdCell = (v) => (v == null ? "" : String(v)).replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
 
@@ -92,7 +104,7 @@ async function main() {
       const id = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
       if (!id) fail("Missing GOOGLE_SHEETS_SPREADSHEET_ID");
       const token = await getGoogleSheetsAccessToken();
-      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values/${encodeURIComponent("Sponsors!A1:K1")}`,
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values/${encodeURIComponent(`Sponsors!A1:${SHEET_LAST_COL}1`)}`,
         { headers: { Authorization: `Bearer ${token}` } });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) fail(`Sheets read error (${res.status}): ${body?.error?.message || res.statusText}`);
@@ -102,7 +114,9 @@ async function main() {
         auth: "ok",
         range: body.range,
         headerPresent: header.length > 0,
+        headerMatches: header.length === 0 || header.join("|") === SHEET_HEADERS.join("|"),
         header,
+        expectedHeader: SHEET_HEADERS,
         spreadsheetId: id,
         url: `https://docs.google.com/spreadsheets/d/${id}/edit`
       });
@@ -110,15 +124,14 @@ async function main() {
     case "append": {
       const rows = readRows(opt.json);
       const results = [];
-      for (const r of rows) {
-        results.push(await appendSponsorToSheet({
-          sponsorName: r.sponsorName, brandDomain: r.brandDomain || "", timestamp: r.timestamp || "",
-          extractedQuote: r.extractedQuote || "", contactEmail: r.contactEmail || "", contactName: r.contactName || "",
-          contactTitle: r.contactTitle || "", pitch: r.pitch || "", videoUrl: r.videoUrl || "",
-          ...(r.status ? { status: r.status } : {})
-        }));
-      }
+      for (const r of rows) results.push(await appendSponsorToSheet(sheetFields(r)));
       return emit({ ok: true, appended: results.length, results });
+    }
+    case "row-preview": {
+      const rows = readRows(opt.json);
+      const loggedAt = new Date().toISOString().replace("T", " ").substring(0, 19);
+      return emit({ ok: true, dryRun: true, header: SHEET_HEADERS,
+        rows: rows.map((r) => { const v = buildSheetRow({ ...sheetFields(r), loggedAt }); return Object.fromEntries(SHEET_HEADERS.map((h, i) => [h, v[i]])); }) });
     }
     case "export": {
       const rows = readRows(opt.json);

@@ -3,7 +3,7 @@
 // Everything below the DATA block stays as is.
 import { Page, Section, Table, BulletList, Select, Input, Properties, Callout, LinkCards, useState, useGrokTheme, ChangeEvent } from "grok/canvas";
 
-type Sponsor = { videoTitle: string; channelTitle: string; viewCount: number; videoUrl: string; sponsorName: string; brandDomain: string; timestamp: string; extractedQuote: string; contactName: string; contactEmail: string; contactTitle: string; confidence: string; sheetRow: string; pitch: string };
+type Sponsor = { searchedFor?: string; resultNo?: number; videoTitle: string; channelTitle: string; viewCount: number; videoUrl: string; sponsorName: string; brandDomain: string; timestamp: string; extractedQuote: string; contactName: string; contactEmail: string; contactTitle: string; confidence: string; sheetRow: string; pitch: string };
 
 // ==== DATA (replace per run) ====
 const TITLE = "Youtube Sponsor Scout: <topic, or the video title in URL mode>";

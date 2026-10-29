@@ -6,7 +6,11 @@ import {
   parseDescriptionMetadata,
   extractSponsorFromMetadata,
   generateSponsorPitch,
-  searchYouTubeVideosByTopic
+  searchYouTubeVideosByTopic,
+  SHEET_HEADERS,
+  SHEET_LAST_COL,
+  buildSheetRow,
+  appendSponsorToSheet
 } from "./server.mjs";
 
 test("extractYouTubeVideoId parses watch, short, and raw video IDs", () => {
@@ -144,5 +148,62 @@ test("searchYouTubeVideosByTopic validates topic and enriches search results wit
   } finally {
     globalThis.fetch = originalFetch;
     if (!originalKey) delete process.env.YOUTUBE_API_KEY;
+  }
+});
+
+test("SHEET_HEADERS is the 16-column Sponsors layout (A:P)", () => {
+  assert.deepEqual(SHEET_HEADERS, [
+    "Searched For", "No.", "Video URL", "Views", "Video Timestamp", "Brand Domain", "Sponsor Name",
+    "Decision Maker Name", "Job Title", "Contact Email", "Extracted Quote", "Outreach Pitch", "Channel",
+    "Logged At", "Status", "Video Title"
+  ]);
+  assert.equal(SHEET_LAST_COL, String.fromCharCode(64 + SHEET_HEADERS.length));
+});
+
+test("buildSheetRow puts every field in its column and defaults blanks", () => {
+  const row = buildSheetRow({
+    searchedFor: "Grok Bot", resultNo: 3, videoUrl: "https://www.youtube.com/watch?v=j0Pqe8c07vY", viewCount: "79090",
+    timestamp: "02:10 - 03:40", brandDomain: "gohighlevel.com", sponsorName: "GoHighLevel", contactName: "Walt Bayliss",
+    contactTitle: "Head of Growth", contactEmail: "walt@example.com", extractedQuote: "q", pitch: "p",
+    channelTitle: "AI Master", loggedAt: "2026-10-29 14:00:00", videoTitle: "Grok Bot Tutorial"
+  });
+  assert.equal(row.length, 16);
+  const byHeader = Object.fromEntries(SHEET_HEADERS.map((h, i) => [h, row[i]]));
+  assert.equal(byHeader["Searched For"], "Grok Bot");
+  assert.equal(byHeader["No."], 3);
+  assert.equal(byHeader["Views"], 79090);
+  assert.equal(byHeader["Channel"], "AI Master");
+  assert.equal(byHeader["Video Title"], "Grok Bot Tutorial");
+  assert.equal(byHeader["Status"], "Scouted - Ready to Pitch");
+  const blank = buildSheetRow({ sponsorName: "X" });
+  assert.equal(blank.length, 16);
+  assert.equal(blank[0], "");
+  assert.equal(blank[3], "");
+});
+
+test("appendSponsorToSheet appends 16 cells to Sponsors!A:P (mocked fetch)", async (t) => {
+  const hasCreds = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY;
+  if (!hasCreds) return t.skip("no service-account creds in env to sign the JWT");
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  try {
+    globalThis.fetch = async (url, opt = {}) => {
+      const u = String(url); calls.push({ u, opt });
+      if (u.includes("oauth2.googleapis.com/token")) return { ok: true, json: async () => ({ access_token: "test-token" }) };
+      if (u.includes(":append")) return { ok: true, json: async () => ({ updates: { updatedRange: "Sponsors!A24:P24", updatedRows: 1 } }) };
+      return { ok: true, json: async () => ({ values: [SHEET_HEADERS] }) };
+    };
+    const res = await appendSponsorToSheet({ spreadsheetId: "TEST", sponsorName: "WorkOS", searchedFor: "Grok Bot", resultNo: 6,
+      viewCount: 3343258, channelTitle: "How I AI", videoTitle: "7 Grok Bot agents", contactEmail: "", timestamp: "unknown", extractedQuote: "" });
+    assert.equal(res.updatedRange, "Sponsors!A24:P24");
+    const app = calls.find((c) => c.u.includes(":append"));
+    assert.ok(decodeURIComponent(app.u).includes("Sponsors!A:P:append"));
+    const values = JSON.parse(app.opt.body).values[0];
+    assert.equal(values.length, 16);
+    assert.equal(values[0], "Grok Bot");
+    assert.equal(values[12], "How I AI");
+    assert.ok(!calls.some((c) => c.opt.method === "PUT"), "header already present, must not rewrite row 1");
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

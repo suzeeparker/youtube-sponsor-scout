@@ -676,6 +676,30 @@ export async function getGoogleSheetsAccessToken() {
   return tokenData.access_token;
 }
 
+// Sponsors tab columns A:P. Keep SHEET_HEADERS, buildSheetRow, and b15 sheet.mjs HEADERS in sync.
+export const SHEET_HEADERS = [
+  "Searched For", "No.", "Video URL", "Views", "Video Timestamp", "Brand Domain", "Sponsor Name",
+  "Decision Maker Name", "Job Title", "Contact Email", "Extracted Quote", "Outreach Pitch", "Channel",
+  "Logged At", "Status", "Video Title"
+];
+export const SHEET_LAST_COL = "P"; // column letter of the last header (16 columns)
+
+/**
+ * Builds the 16-cell Sponsors row in SHEET_HEADERS order. Pure; no network.
+ */
+export function buildSheetRow({
+  searchedFor = "", resultNo = "", videoUrl = "", viewCount = "", timestamp = "", brandDomain = "",
+  sponsorName = "", contactName = "", contactTitle = "", contactEmail = "", extractedQuote = "",
+  pitch = "", channelTitle = "", loggedAt = "", status = "Scouted - Ready to Pitch", videoTitle = ""
+} = {}) {
+  const num = (v) => (v === "" || v == null ? "" : Number.isFinite(Number(v)) ? Number(v) : v);
+  return [
+    searchedFor ?? "", num(resultNo), videoUrl ?? "", num(viewCount), timestamp ?? "", brandDomain ?? "",
+    sponsorName ?? "", contactName ?? "", contactTitle ?? "", contactEmail ?? "", extractedQuote ?? "",
+    pitch ?? "", channelTitle ?? "", loggedAt ?? "", status || "Scouted - Ready to Pitch", videoTitle ?? ""
+  ];
+}
+
 /**
  * Core Function 3: appendSponsorToSheet
  * Appends a scouted sponsor tracking row into Google Sheets API v4.
@@ -683,6 +707,11 @@ export async function getGoogleSheetsAccessToken() {
 export async function appendSponsorToSheet({
   spreadsheetId = getDefaultSpreadsheetId(),
   sheetName = "Sponsors",
+  searchedFor = "",
+  resultNo = "",
+  viewCount = "",
+  channelTitle = "",
+  videoTitle = "",
   sponsorName,
   brandDomain = "",
   timestamp,
@@ -706,23 +735,19 @@ export async function appendSponsorToSheet({
 
   try {
     const headerRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(`${sheetName}!A1:K1`)}`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(`${sheetName}!A1:${SHEET_LAST_COL}1`)}`,
       { headers }
     );
     if (headerRes.ok) {
       const headerData = await headerRes.json();
       if (!headerData.values || headerData.values.length === 0) {
         await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(`${sheetName}!A1:K1`)}?valueInputOption=USER_ENTERED`,
+          `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(`${sheetName}!A1:${SHEET_LAST_COL}1`)}?valueInputOption=USER_ENTERED`,
           {
             method: "PUT",
             headers,
             body: JSON.stringify({
-              values: [[
-                "Video URL", "Video Timestamp", "Brand Domain", "Sponsor Name",
-                "Decision Maker Name", "Job Title", "Contact Email", "Extracted Quote",
-                "Outreach Pitch", "Logged At", "Status"
-              ]]
+              values: [SHEET_HEADERS]
             })
           }
         );
@@ -733,24 +758,13 @@ export async function appendSponsorToSheet({
   }
 
   const loggedAt = new Date().toISOString().replace("T", " ").substring(0, 19);
-  // Column order: Video URL | Video Timestamp | Brand Domain | Sponsor Name |
-  // Decision Maker Name | Job Title | Contact Email | Extracted Quote | Outreach Pitch | Logged At | Status
-  const rowValues = [
-    videoUrl,
-    timestamp,
-    brandDomain,
-    sponsorName,
-    contactName,
-    contactTitle,
-    contactEmail,
-    extractedQuote,
-    pitch,
-    loggedAt,
-    status
-  ];
+  const rowValues = buildSheetRow({
+    searchedFor, resultNo, videoUrl, viewCount, timestamp, brandDomain, sponsorName, contactName,
+    contactTitle, contactEmail, extractedQuote, pitch, channelTitle, loggedAt, status, videoTitle
+  });
 
   const appendRes = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(`${sheetName}!A:K`)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(`${sheetName}!A:${SHEET_LAST_COL}`)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     {
       method: "POST",
       headers,
@@ -834,7 +848,10 @@ export async function scoutYouTubeSponsorPipeline({
   channelName,
   channelNiche,
   audienceMetrics,
-  customPitch
+  customPitch,
+  searchedFor = videoUrl,
+  resultNo = 1,
+  viewCount = ""
 }) {
   const detection = await detectYouTubeSponsors({ videoUrl });
   if (!detection.hasSponsor || !detection.brandDomain) {
@@ -882,7 +899,12 @@ export async function scoutYouTubeSponsorPipeline({
       contactName,
       contactTitle,
       pitch: pitchResult.fullPitch,
-      videoUrl
+      videoUrl,
+      searchedFor,
+      resultNo,
+      viewCount,
+      channelTitle: detection.channelTitle || "",
+      videoTitle: detection.videoTitle || ""
     });
   }
 
@@ -919,6 +941,7 @@ export async function scoutTopicSponsorsPipeline({
   const resolvedAudience = audienceStats || audienceMetrics;
 
   const scoutedResults = [];
+  let resultNo = 0;
   for (const video of searchResults.videos) {
     if (!video.hasSponsorHint || !video.brandDomain) {
       scoutedResults.push({
@@ -934,12 +957,16 @@ export async function scoutTopicSponsorsPipeline({
 
     const pipelineRes = await scoutYouTubeSponsorPipeline({
       videoUrl: video.videoUrl,
+      searchedFor: topic,
+      resultNo: resultNo + 1,
+      viewCount: video.viewCount,
       spreadsheetId,
       channelName: resolvedChannelName,
       channelNiche: resolvedChannelNiche,
       audienceMetrics: resolvedAudience
     });
 
+    if (pipelineRes.sheetLogged) resultNo += 1;
     scoutedResults.push({
       videoId: video.videoId,
       videoUrl: video.videoUrl,
@@ -1060,7 +1087,12 @@ async function run() {
       contactTitle: z.string().optional().describe("Job title of the contact"),
       pitch: z.string().optional().describe("Generated 3-sentence outreach pitch"),
       videoUrl: z.string().optional().describe("Original YouTube video URL"),
-      status: z.string().optional().describe("Tracking status (default: 'Scouted - Ready to Pitch')")
+      status: z.string().optional().describe("Tracking status (default: 'Scouted - Ready to Pitch')"),
+      searchedFor: z.string().optional().describe("Run's search topic, or the video URL in URL mode (column A)"),
+      resultNo: z.number().int().optional().describe("Result number within the run, 1..N (column B)"),
+      viewCount: z.number().optional().describe("Video view count at scout time (column D)"),
+      channelTitle: z.string().optional().describe("YouTube channel of the video (column M)"),
+      videoTitle: z.string().optional().describe("YouTube video title (column P)")
     },
     async (params) => {
       try {

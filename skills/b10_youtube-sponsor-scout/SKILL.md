@@ -87,7 +87,8 @@ Rules:
 
 ## Step 7: Present and save
 1. Build `rows.json`, an array with one object per verified sponsor:
-   - keys: `videoTitle`, `channelTitle`, `viewCount`, `videoUrl`, `sponsorName`, `brandDomain`, `timestamp`, `extractedQuote`, `contactName`, `contactEmail`, `contactTitle`, `pitch`;
+   - keys: `searchedFor`, `resultNo`, `videoTitle`, `channelTitle`, `viewCount`, `videoUrl`, `sponsorName`, `brandDomain`, `timestamp`, `extractedQuote`, `contactName`, `contactEmail`, `contactTitle`, `pitch`;
+   - `searchedFor` is the topic exactly as the user typed it (in URL mode, the video URL); `resultNo` is the sponsor's number in this run, 1 to N in `rows.json` order; `viewCount` is a number;
    - optional key: `status` (defaults to `Scouted - Ready to Pitch`);
    - for missing values, use `""`.
 2. Don't post the summary table or the pitches in the chat. They go on the Youtube Sponsor Scout page (Step 9). In the chat, keep it to a few short lines: how many sponsors were found out of N, how many videos were checked, the contact per sponsor (or "no contact found"), and up to four `alternativeContacts` runners-up.
@@ -99,7 +100,7 @@ Rules:
 
 ## Step 8: Google Sheet (every run, automatic)
 Every run's rows go in the Sheet automatically; don't ask first. Rows are added after the rows already there; never clear, overwrite, or reorder existing rows.
-1. Run `CLI sheet-check` (read-only). It must return `"auth": "ok"` and a `url`; if not, report the error and stop this step.
+1. Run `CLI sheet-check` (read-only). It must return `"auth": "ok"`, a `url`, and `"headerMatches": true`; if not, report the error (or the `header` it found next to `expectedHeader`) and stop this step. The Sheet has 16 columns A:P: Searched For, No., Video URL, Views, Video Timestamp, Brand Domain, Sponsor Name, Decision Maker Name, Job Title, Contact Email, Extracted Quote, Outreach Pitch, Channel, Logged At, Status, Video Title.
 2. Append all rows in `rows.json` (every verified sponsor, with or without a contact): `CLI append --json $DIR/rows.json`.
 3. Append once per run. Never append the same `rows.json` twice; after a successful append, write `$DIR/appended.txt` with the time and `updatedRange`, and skip the append if that file already exists.
 4. Report `appended`, each `updatedRange`, and the Sheet link from `sheet-check` as a Markdown link labeled **Sponsors sheet** (use the `url` field). Never invent the link.
@@ -122,4 +123,5 @@ The Page's Send button only opens the reader's own mail app with the pitch fille
 - `CLI search "<topic>" [--count N] [--order O] [--page-token T]`: lists videos only, with sponsor hints, and returns `nextPageToken` for the next batch.
 - `CLI detect "<url>"`: full metadata for one video.
 - `CLI enrich <domain>`, `CLI sheet-check`, `CLI append --json <file>`.
+- `CLI row-preview --json <file>`: dry run that prints the 16-cell Sheet row for each object in `rows.json` without writing anything.
 - `CLI export` exists but this skill must not use it.
