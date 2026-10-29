@@ -90,10 +90,7 @@ Rules:
    - keys: `videoTitle`, `channelTitle`, `viewCount`, `videoUrl`, `sponsorName`, `brandDomain`, `timestamp`, `extractedQuote`, `contactName`, `contactEmail`, `contactTitle`, `pitch`;
    - optional key: `status` (defaults to `Scouted - Ready to Pitch`);
    - for missing values, use `""`.
-2. Show the user:
-   - a **summary table** with exactly these columns: #, Video (title linked to URL), Channel, Views, Sponsor;
-   - then the **N pitches**, each labeled with its sponsor and video title (subject line + 3 sentences);
-   - below that, a short list of rejected videos with one-line reasons (optional, keep it brief).
+2. Don't post the summary table or the pitches in the chat. They go on the Youtube Sponsor Scout page (Step 9). In the chat, keep it to a few short lines: how many sponsors were found out of N, how many videos were checked, the contact per sponsor (or "no contact found"), and up to four `alternativeContacts` runners-up.
 3. Save working files only (no `sponsors.md`, no `sponsors.csv`):
    - Topic: `DIR=/workspace/youtube-sponsors/<topic_slug>_<yymmdd>/`
    - URL: `DIR=/workspace/youtube-sponsors/url_<videoId>_<yymmdd>/`
@@ -107,6 +104,19 @@ Every run's rows go in the Sheet automatically; don't ask first. Rows are added 
 3. Append once per run. Never append the same `rows.json` twice; after a successful append, write `$DIR/appended.txt` with the time and `updatedRange`, and skip the append if that file already exists.
 4. Report `appended`, each `updatedRange`, and the Sheet link from `sheet-check` as a Markdown link labeled **Sponsors sheet** (use the `url` field). Never invent the link.
 5. If the append fails, report the error word for word and stop; don't retry on your own.
+
+## Step 9: Youtube Sponsor Scout page (every run, automatic)
+The user wants a Page at the end of every run; don't ask first, and don't wait to be asked. Load the Cursor-managed `canvas` skill with Skill first, then:
+1. Read `/workspace/agent-tools/youtube-sponsor-scout/scripts/results-page.canvas.tsx`. Copy it as is and replace **only** the block between `// ==== DATA (replace per run) ====` and `// ==== END DATA ====`. Never change the layout below it; if it needs a change, change the template file and test it.
+   - `TITLE`: `Youtube Sponsor Scout: <topic>`, or `Youtube Sponsor Scout: <video title>` in URL mode.
+   - `SUMMARY`: one sentence: how many verified sponsors, for which topic or video, and the date (America/New_York).
+   - `SHEET_URL`: the `url` from `CLI sheet-check`, and `LOGGED_AT`: the append time with an EDT/EST label. Both `""` if Step 8 was skipped or failed.
+   - `WHAT_HAPPENED`: 3 to 7 plain one-line bullets: the search and how many videos were checked, how many kept, the main reasons others were rejected, the Hunter results per sponsor, and the sheet rows appended (from `updatedRange`) or why the sheet was skipped. Only facts from this run.
+   - `SPONSORS`: one object per row in `rows.json`, in the same order, plus `confidence` (Hunter's `confidence` as a string, `""` if no contact) and `sheetRow` (its row number from `updatedRange`, `""` if not logged). `viewCount` is a number. `pitch` is the full pitch starting `Subject: ...`, then a blank line, then the 3 sentences.
+2. Call `WriteCanvas` with the full source and `title` set to the same `TITLE`. A new run makes a new Page; only overwrite an existing one (by `canvas_id`) when the user asks to redo that run's Page. If the write reports type errors, fix only the DATA block with `EditCanvas` on the draft id.
+3. End the run with a message starting `Done:`, the short chat summary from Step 7, the **Sponsors sheet** link, and the Page as a Markdown link labeled with its title, using exactly the `url` that `WriteCanvas` returned.
+
+The Page's Send button only opens the reader's own mail app with the pitch filled in (a `mailto:` link, the same as `scripts/send-pitch-template.html`); this skill never sends the pitch itself.
 
 ## Other commands
 - `CLI search "<topic>" [--count N] [--order O] [--page-token T]`: lists videos only, with sponsor hints, and returns `nextPageToken` for the next batch.

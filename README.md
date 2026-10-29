@@ -13,7 +13,7 @@ Ground rules built into the skills:
 
 | Skill | What it does |
 |---|---|
-| `b10_youtube-sponsor-scout` | The main skill: search, verify sponsors, enrich, write pitches, and log to the sheet. Includes the Node.js CLI in `scripts/`. |
+| `b10_youtube-sponsor-scout` | The main skill: search, verify sponsors, enrich, write pitches, and log to the sheet. Includes the Node.js CLI in `scripts/`. Ends each run with a results Page (sponsor table, editable pitches, Send button). |
 | `b11_youtube-key` | Makes sure a working YouTube Data API v3 key is saved, creating one with the gcloud CLI if needed. |
 | `b12_hunter-key` | Makes sure a working Hunter.io API key is saved, asking you to paste it into a masked field. |
 | `b13_gmail-workspace-account` | One-time Google sign-in (OAuth) so the tool can create the sheet in your own Drive. |
@@ -42,7 +42,7 @@ Free tiers have limits: YouTube's daily API quota and Hunter's monthly free cred
 
 ```
 skills/
-  b10_youtube-sponsor-scout/   SKILL.md, package.json, scripts/ (cli.mjs, server.mjs, tests, send-pitch-template.html)
+  b10_youtube-sponsor-scout/   SKILL.md, package.json, scripts/ (cli.mjs, server.mjs, tests, send-pitch-template.html, results-page.canvas.tsx)
   b11_youtube-key/             SKILL.md
   b12_hunter-key/              SKILL.md
   b13_gmail-workspace-account/ SKILL.md, scripts/gws.mjs
