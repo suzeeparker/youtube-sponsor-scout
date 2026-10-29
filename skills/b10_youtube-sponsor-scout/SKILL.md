@@ -9,15 +9,15 @@ description: >-
 
 Finds the sponsors in YouTube videos, either for a single URL or for the top N videos on a topic. It then looks up a decision-maker contact on Hunter.io, drafts a 3-sentence outreach pitch, and appends every run's rows to the user's Google Sheet. Every API call goes through one CLI that prints JSON. Grok Bot reviews that JSON, checks the sponsor, and writes the pitch. Don't call the APIs any other way.
 
-## Step 0: Update (optional)
-To get the latest version, pull the cloned repo and recopy the tool files (never overwrite `.env`):
+## Step 0: Update (every run)
+Always do this first, on every run, before anything else: pull the cloned repo and recopy the tool files (never overwrite `.env` or `channel.json`):
 ```
 cd /workspace/youtube-sponsor-scout && git pull --ff-only
 mkdir -p /workspace/agent-tools/youtube-sponsor-scout
 cp skills/b10_youtube-sponsor-scout/package.json /workspace/agent-tools/youtube-sponsor-scout/
 cp -r skills/b10_youtube-sponsor-scout/scripts /workspace/agent-tools/youtube-sponsor-scout/
 ```
-If any `skills/*/SKILL.md` changed, save it again as its skill (same name as its folder) and re-read this file.
+If any `skills/*/SKILL.md` changed, save it again as its skill (same name as its folder) and re-read this file. If the pull fails, report the error word for word and continue with the current copy.
 
 ## Step 1: Setup check (every run)
 ```
@@ -40,7 +40,7 @@ Below, `CLI` means `node /workspace/agent-tools/youtube-sponsor-scout/scripts/cl
 
 ## Step 2: Inputs (ask only for what's missing)
 - Mode: a single `<url>`, or a `<topic>` with a count `N` (default 5, max 50) and an order (`relevance` by default; also `viewCount`, `date`, `rating`).
-- For pitches: the user's channel name, its niche, and its audience numbers. Ask once per run. If they don't give them, write sentence 2 about "my channel" and its audience in general terms, with no bracketed placeholders and no numbers; never make the numbers up.
+- For pitches: the user's channel name, saved in `/workspace/agent-tools/youtube-sponsor-scout/channel.json` as `{"channelName": "", "updatedAt": ""}`. Ask exactly once per run, as one plain chat line (no card, widget or form): `Channel name: <saved name>. Reply with a new name, or "ok" to keep it.` If none is saved, use `Channel name: (none yet). Reply with your channel name, or "ok" to leave it blank.` A reply of "ok" keeps the saved value; any other reply is the new name. Save it to `channel.json` (create it if missing) with `updatedAt` set to now in the user's time zone, and use it in sentence 2. `channel.json` is the user's own data: never copy it into the repo or commit it. Don't ask for niche or audience numbers: write sentence 2 about the channel and its audience in general terms, with no bracketed placeholders and no numbers; never make numbers up. If the name is blank, say "my channel".
 
 ## Step 3: Find N verified sponsors (topic mode)
 Goal: end with exactly `N` verified sponsors, checking at most two batches of 50 videos. Never call Hunter or write to the Sheet in this step. Each search costs 100 YouTube quota units no matter how many videos it returns (the daily quota is 10,000), so never search one video at a time.
@@ -66,8 +66,8 @@ The CLI's sponsor detection is a heuristic and often gets it wrong. Check every 
 - Fix the sponsor name (for example `Gohighlevel` becomes `GoHighLevel`) and the root domain: strip the protocol, `www.`, the path, and the query. If there's a sponsor chapter, use its time range; otherwise put `unknown`. Don't keep the CLI's default `00:00 - 01:30`.
 - Record a one-line reason for every keep or reject.
 
-## Step 5: Enrich (Hunter credits are limited)
-For each verified sponsor domain, call `CLI enrich <domain>` once per domain per run. If the run has more than 5 domains, ask the user before enriching.
+## Step 5: Enrich (automatic, no approval)
+For each verified sponsor domain, call `CLI enrich <domain>` once per domain per run. Never ask before enriching, whatever the number of domains. If Hunter says the plan or rate limit is reached (an HTTP 429 or a usage-limit error), stop enriching, mark the remaining sponsors "no contact found (Hunter limit reached)", finish the run, and tell the user in the chat summary.
 - The CLI already ranks contacts, putting titles that mention partnerships, influencer, creator, brand, growth, or CMO first. Use `primaryDecisionMaker` (its `fullName`, `position`, `email`, `confidence`), which is the top-ranked contact. List up to four runners-up from `alternativeContacts` only in the chat reply, not in the Sheet.
 - If `primaryDecisionMaker` is `null`, leave the contact fields empty and say "no contact found" in the chat reply.
 - Never guess an email address from `emailPattern`.

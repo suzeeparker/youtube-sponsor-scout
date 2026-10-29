@@ -47,7 +47,7 @@ You can remove this access any time at [Google third-party access](https://myacc
 2. Open [hunter.io/api-keys](https://hunter.io/api-keys), on a computer if you can (on a phone, switch the browser to its desktop site). Copy your default key with the copy icon.
 3. Paste it into the masked "Hunter.io API key" field your agent shows.
 
-The free plan includes 50 credits a month; a Domain Search uses 1 credit per email found (see [Hunter pricing](https://hunter.io/pricing)). The scout enriches each sponsor domain once per run and asks before enriching more than 5 domains.
+The free plan includes 50 credits a month; a Domain Search uses 1 credit per email found (see [Hunter pricing](https://hunter.io/pricing)). The scout enriches each sponsor domain once per run without asking; if Hunter reports the plan limit is reached, it marks the remaining sponsors "no contact found (Hunter limit reached)" and says so in the summary.
 
 ## 6. Sponsors sheet
 

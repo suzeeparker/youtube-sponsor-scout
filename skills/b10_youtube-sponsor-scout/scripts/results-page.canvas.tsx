@@ -32,19 +32,20 @@ const mailto = (to: string, pitch: string): string => {
 
 export default function App() {
   const theme = useGrokTheme();
-  const [selected, setSelected] = useState<string>(SPONSORS.length ? SPONSORS[0].sponsorName : "");
+  const [selected, setSelected] = useState<string>("0"); // row index as a string, so two rows with the same sponsor stay separate
   const [pitches, setPitches] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {};
-    SPONSORS.forEach((s: Sponsor) => { m[s.sponsorName] = s.pitch; });
+    SPONSORS.forEach((s: Sponsor, i: number) => { m[String(i)] = s.pitch; });
     return m;
   });
   const [emails, setEmails] = useState<Record<string, string>>(() => {
     const m: Record<string, string> = {};
-    SPONSORS.forEach((s: Sponsor) => { m[s.sponsorName] = s.contactEmail; });
+    SPONSORS.forEach((s: Sponsor, i: number) => { m[String(i)] = s.contactEmail; });
     return m;
   });
-  const cur = SPONSORS.find((s: Sponsor) => s.sponsorName === selected) ?? SPONSORS[0];
-  const to = cur ? emails[cur.sponsorName] ?? "" : "";
+  const cur = SPONSORS[Number(selected)] ?? SPONSORS[0];
+  const curKey = SPONSORS[Number(selected)] ? selected : "0";
+  const to = cur ? emails[curKey] ?? "" : "";
   const canSend = isEmail(to);
   const link = { color: theme.text.accent, textDecoration: "underline" };
   const btn = { display: "inline-block", padding: "8px 20px", borderRadius: theme.radius.md, fontFamily: theme.font.family, fontSize: theme.font.body1.fontSize, fontWeight: theme.weight.medium, textDecoration: "none" };
@@ -73,11 +74,11 @@ export default function App() {
           <Table
             columns={["YouTube URL", "Views", "Sponsor", "Contact Email"]}
             align={["start", "end", "start", "start"]}
-            rows={SPONSORS.map((s: Sponsor) => [
+            rows={SPONSORS.map((s: Sponsor, i: number) => [
               <a key="u" href={s.videoUrl} target="_blank" rel="noopener" style={link}>{s.videoUrl}</a>,
               s.viewCount.toLocaleString("en-US"),
               s.sponsorName,
-              s.contactEmail ? <a key="e" href={mailto(emails[s.sponsorName] || s.contactEmail, pitches[s.sponsorName] ?? s.pitch)} target="_blank" rel="noopener" style={link}>{s.contactEmail}</a> : "none found"
+              s.contactEmail ? <a key="e" href={mailto(emails[String(i)] || s.contactEmail, pitches[String(i)] ?? s.pitch)} target="_blank" rel="noopener" style={link}>{s.contactEmail}</a> : "none found"
             ])}
           />
         </Section>
@@ -93,23 +94,23 @@ export default function App() {
         <Section heading="Sponsor details">
           <Select
             label="Sponsor"
-            options={SPONSORS.map((s: Sponsor) => ({ value: s.sponsorName, label: s.sponsorName + " (" + s.channelTitle + ")" }))}
+            options={SPONSORS.map((s: Sponsor, i: number) => ({ value: String(i), label: (i + 1) + ". " + s.sponsorName + " (" + s.channelTitle + ")" }))}
             value={selected}
             onChange={(v: string) => setSelected(v)}
           />
           <Properties items={props} />
           <textarea
             aria-label="Outreach pitch"
-            value={pitches[cur.sponsorName]}
-            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setPitches((p: Record<string, string>) => ({ ...p, [cur.sponsorName]: v })); }}
+            value={pitches[curKey]}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => { const v = e.target.value; setPitches((p: Record<string, string>) => ({ ...p, [curKey]: v })); }}
             rows={9}
             style={{ width: "100%", boxSizing: "border-box", padding: 12, borderRadius: theme.radius.md, border: "1px solid " + theme.border.default, background: theme.bg.base, color: theme.text.primary, fontFamily: theme.font.family, fontSize: theme.font.body1.fontSize, lineHeight: theme.font.body1.lineHeight, resize: "vertical" }}
           />
           <Callout tone="info">Outreach pitch edits stay on this page while it's open and aren't saved to the sheet. Send opens your own mail app with the pitch filled in.</Callout>
-          <Input label="Send To:" value={to} placeholder="name@company.com" onChange={(v: string) => setEmails((m: Record<string, string>) => ({ ...m, [cur.sponsorName]: v }))} />
+          <Input label="Send To:" value={to} placeholder="name@company.com" onChange={(v: string) => setEmails((m: Record<string, string>) => ({ ...m, [curKey]: v }))} />
           <div>
             {canSend ? (
-              <a href={mailto(to, pitches[cur.sponsorName])} target="_blank" rel="noopener" style={{ ...btn, background: theme.fill.primary, color: theme.text.onPrimary, cursor: "pointer" }}>Send</a>
+              <a href={mailto(to, pitches[curKey])} target="_blank" rel="noopener" style={{ ...btn, background: theme.fill.primary, color: theme.text.onPrimary, cursor: "pointer" }}>Send</a>
             ) : (
               <span aria-disabled="true" style={{ ...btn, background: theme.fill.secondary, color: theme.text.tertiary, cursor: "not-allowed" }}>Send</span>
             )}

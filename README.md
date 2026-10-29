@@ -27,7 +27,7 @@ Ground rules built into the skills:
 3. The agent clones this repo, saves each skill, installs the tool, and runs the setup checks. It walks you through anything that's missing.
 4. If you don't have the accounts yet, follow [SETUP.md](SETUP.md) first, or as the agent asks.
 
-To update later, ask the agent to run Step 0 of `b10_youtube-sponsor-scout` (git pull and recopy the tool files).
+Updates are automatic: Step 0 of `b10_youtube-sponsor-scout` pulls this repo and recopies the tool files at the start of every run.
 
 ## Requirements
 
